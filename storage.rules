@@ -1,0 +1,18 @@
+rules_version = '2';
+service firebase.storage {
+ match /b/{bucket}/o {
+  function signedInAdmin(){return request.auth != null && request.auth.token.admin == true;}
+  function approvedSeller(uid){return request.auth != null && request.auth.uid == uid && firestore.exists(/databases/(default)/documents/users/$(uid)) && firestore.get(/databases/(default)/documents/users/$(uid)).data.role == 'seller' && firestore.get(/databases/(default)/documents/users/$(uid)).data.sellerStatus == 'approved';}
+  match /seller-products/{sellerId}/{productId}/{fileName} {
+   allow read: if true;
+   allow create, update: if (signedInAdmin() || approvedSeller(sellerId)) && request.resource.size < 5 * 1024 * 1024 && request.resource.contentType.matches('image/(jpeg|png|webp)');
+   allow delete: if signedInAdmin() || approvedSeller(sellerId);
+  }
+  match /product-images/{productId}/{fileName} {
+   allow read: if true;
+   allow create, update: if signedInAdmin() && request.resource.size < 5 * 1024 * 1024 && request.resource.contentType.matches('image/(jpeg|png|webp|gif)');
+   allow delete: if signedInAdmin();
+  }
+  match /{allPaths=**} { allow read, write: if false; }
+ }
+}
